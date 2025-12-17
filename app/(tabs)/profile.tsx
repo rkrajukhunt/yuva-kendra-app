@@ -5,9 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import { useAuth } from '../../services/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,25 +18,49 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-              router.replace('/(auth)/login');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to logout');
-            }
+    console.log('Logout button clicked');
+    
+    // On web, use confirm dialog; on native, use Alert
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      if (!confirmed) {
+        console.log('Logout cancelled');
+        return;
+      }
+      // If confirmed on web, proceed directly
+      performLogout();
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => console.log('Logout cancelled') },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: () => {
+              performLogout();
+            },
           },
-        },
-      ]
-    );
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
+  const performLogout = async () => {
+    console.log('Logout confirmed, signing out...');
+    try {
+      await signOut();
+      console.log('Sign out successful, navigating to login...');
+      // Wait a moment for auth state to update, then navigate
+      setTimeout(() => {
+        router.replace('/(auth)/login');
+      }, 200);
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', error.message || 'Failed to logout. Please try again.');
+    }
   };
 
   return (
@@ -65,7 +90,12 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleLogout}
+          activeOpacity={0.7}
+          disabled={false}
+        >
           <MaterialCommunityIcons name="logout" size={20} color={Colors.destructiveForeground} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
