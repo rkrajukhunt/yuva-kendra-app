@@ -21,7 +21,6 @@ import { WeeklyReport, City, Kendra, ReportFilters } from '../../types';
 import { Colors } from '../../constants/Colors';
 import { formatDate } from '../../utils/dateHelpers';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { exportToPDF, exportToExcel } from '../../services/exportService';
 import Dropdown from '../../components/Dropdown';
 
 export default function ReportsScreen() {
@@ -36,7 +35,6 @@ export default function ReportsScreen() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<ReportFilters>({});
-  const [exporting, setExporting] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -129,38 +127,6 @@ export default function ReportsScreen() {
     loadData();
   }, [loadData]);
 
-  const handleExportPDF = async () => {
-    if (filteredReports.length === 0) {
-      Alert.alert('No Data', 'There are no reports to export');
-      return;
-    }
-
-    setExporting(true);
-    try {
-      await exportToPDF(filteredReports);
-    } catch (error: any) {
-      Alert.alert('Export Error', error.message || 'Failed to export PDF');
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleExportExcel = async () => {
-    if (filteredReports.length === 0) {
-      Alert.alert('No Data', 'There are no reports to export');
-      return;
-    }
-
-    setExporting(true);
-    try {
-      await exportToExcel(filteredReports);
-    } catch (error: any) {
-      Alert.alert('Export Error', error.message || 'Failed to export Excel');
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const renderReportItem = useCallback(({ item }: { item: WeeklyReport }) => {
     return (
     <TouchableOpacity
@@ -227,7 +193,7 @@ export default function ReportsScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.addButton} disabled>
-            <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+            <MaterialCommunityIcons name="plus" size={24} color={Colors.primaryForeground} />
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
@@ -263,7 +229,7 @@ export default function ReportsScreen() {
           style={styles.addButton}
           onPress={() => router.push('/reports/create')}
         >
-          <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+          <MaterialCommunityIcons name="plus" size={24} color={Colors.primaryForeground} />
         </TouchableOpacity>
       </View>
 
@@ -335,7 +301,7 @@ export default function ReportsScreen() {
                         ]}
                         value={filters.type || ''}
                         onValueChange={(value) =>
-                          setFilters({ ...filters, type: value || undefined })
+                          setFilters({ ...filters, type: (value ? value as 'Yuvan' | 'Yuvti' : undefined) })
                         }
                         placeholder="Select type"
                       />
@@ -366,39 +332,6 @@ export default function ReportsScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-
-      {filteredReports.length > 0 && (
-        <View style={styles.exportContainer}>
-          <TouchableOpacity
-            style={[styles.exportButton, exporting && styles.exportButtonDisabled]}
-            onPress={handleExportPDF}
-            disabled={exporting}
-          >
-            {exporting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="file-pdf-box" size={20} color="#fff" />
-                <Text style={styles.exportButtonText}>PDF</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.exportButton, exporting && styles.exportButtonDisabled]}
-            onPress={handleExportExcel}
-            disabled={exporting}
-          >
-            {exporting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="file-excel-box" size={20} color="#fff" />
-                <Text style={styles.exportButtonText}>Excel</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
 
       <FlatList
         data={filteredReports}
@@ -575,31 +508,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-  exportContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  exportButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.success,
-    borderRadius: 8,
-    padding: 12,
-    gap: 8,
-  },
-  exportButtonDisabled: {
-    opacity: 0.6,
-  },
-  exportButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -662,7 +570,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyFiltersText: {
-    color: '#fff',
+    color: Colors.primaryForeground,
     fontSize: 16,
     fontWeight: '600',
   },

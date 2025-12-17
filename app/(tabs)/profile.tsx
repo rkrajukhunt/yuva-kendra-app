@@ -66,7 +66,7 @@ export default function ProfileScreen() {
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialCommunityIcons name="logout" size={20} color="#fff" />
+          <MaterialCommunityIcons name="logout" size={20} color={Colors.destructiveForeground} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   roleText: {
-    color: '#fff',
+    color: Colors.primaryForeground,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutButtonText: {
-    color: '#fff',
+    color: Colors.destructiveForeground,
     fontSize: 16,
     fontWeight: '600',
   },

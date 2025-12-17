@@ -724,7 +724,7 @@ export async function getAttendanceTrends(userId?: string, userRole?: string, ke
     .from('weekly_reports')
     .select('week_start_date, yuva_kendra_attendance, bhavferni_attendance, pravachan_attendance')
     .order('week_start_date', { ascending: false })
-    .limit(weeks * 7); // Get more to account for gaps
+    .limit(weeks * 10); // Get more to account for gaps and multiple reports per week
 
   if (userRole === 'member' && kendraId) {
     query = query.eq('kendra_id', kendraId);
@@ -734,25 +734,38 @@ export async function getAttendanceTrends(userId?: string, userRole?: string, ke
 
   if (error) throw error;
 
-  // Group by week and get latest 5 weeks
-  const weekMap = new Map<string, { yuva: number; bhavferni: number; pravachan: number }>();
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // Group by week and aggregate data
+  const weekMap = new Map<string, { yuva: number; bhavferni: number; pravachan: number; count: number }>();
 
   (data || []).forEach((report: any) => {
     const week = report.week_start_date;
     if (!weekMap.has(week)) {
-      weekMap.set(week, { yuva: 0, bhavferni: 0, pravachan: 0 });
+      weekMap.set(week, { yuva: 0, bhavferni: 0, pravachan: 0, count: 0 });
     }
     const weekData = weekMap.get(week)!;
     weekData.yuva += report.yuva_kendra_attendance || 0;
     weekData.bhavferni += report.bhavferni_attendance || 0;
     weekData.pravachan += report.pravachan_attendance || 0;
+    weekData.count += 1;
   });
 
-  // Convert to array and sort by date, take last 5
-  const trends = Array.from(weekMap.entries())
-    .map(([week, data]) => ({ week, ...data }))
-    .sort((a, b) => a.week.localeCompare(b.week))
-    .slice(-weeks);
+  // Convert to array, sort by date (ascending), and take last N weeks
+  const allTrends = Array.from(weekMap.entries())
+    .map(([week, data]) => ({ 
+      week, 
+      yuva: data.yuva,
+      bhavferni: data.bhavferni,
+      pravachan: data.pravachan,
+    }))
+    .sort((a, b) => a.week.localeCompare(b.week));
 
+  // Get the last N weeks
+  const trends = allTrends.slice(-weeks);
+
+  // If we have fewer than requested weeks, return what we have
   return trends;
 }

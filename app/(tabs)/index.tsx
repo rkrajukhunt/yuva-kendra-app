@@ -15,8 +15,11 @@ import { getDashboardStats, getAttendanceTrends } from '../../services/databaseS
 import { DashboardStats } from '../../types';
 import { Colors } from '../../constants/Colors';
 import { LineChart } from 'react-native-chart-kit';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const screenWidth = Dimensions.get('window').width;
+// Calculate chart width: screen width - content padding (32) - chart container padding (32) - safety margin (8)
+const chartWidth = screenWidth - 72;
 
 export default function DashboardScreen() {
   const { user } = useAuth();
@@ -64,43 +67,53 @@ export default function DashboardScreen() {
 
   const chartData = useMemo(() => {
     if (trends.length === 0) {
-      return {
-        labels: ['No Data'],
-        datasets: [
-          {
-            data: [0],
-            color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
-            strokeWidth: 2,
-          },
-        ],
-      };
+      return null;
     }
 
+    // Format labels with better date formatting
     const labels = trends.map((t) => {
       const date = new Date(t.week);
-      return `${date.getMonth() + 1}/${date.getDate()}`;
+      const month = date.toLocaleDateString('en-US', { month: 'short' });
+      const day = date.getDate();
+      return `${month} ${day}`;
     });
+
+    // Get max value for better scaling
+    const maxValue = Math.max(
+      ...trends.flatMap(t => [t.yuva, t.bhavferni, t.pravachan])
+    );
 
     return {
       labels,
       datasets: [
         {
-          data: trends.map((t) => t.yuva),
-          color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
-          strokeWidth: 2,
+          data: trends.map((t) => t.yuva || 0),
+          color: (opacity = 1) => {
+            // Primary color with opacity
+            const rgb = '15, 23, 42'; // #0f172a
+            return `rgba(${rgb}, ${opacity})`;
+          },
+          strokeWidth: 3,
         },
         {
-          data: trends.map((t) => t.bhavferni),
-          color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
-          strokeWidth: 2,
+          data: trends.map((t) => t.bhavferni || 0),
+          color: (opacity = 1) => {
+            // Success color (green)
+            const rgb = '16, 185, 129'; // #10b981
+            return `rgba(${rgb}, ${opacity})`;
+          },
+          strokeWidth: 3,
         },
         {
-          data: trends.map((t) => t.pravachan),
-          color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
-          strokeWidth: 2,
+          data: trends.map((t) => t.pravachan || 0),
+          color: (opacity = 1) => {
+            // Warning color (orange)
+            const rgb = '245, 158, 11'; // #f59e0b
+            return `rgba(${rgb}, ${opacity})`;
+          },
+          strokeWidth: 3,
         },
       ],
-      legend: ['Yuva Kendra', 'Bhavferni', 'Pravachan'],
     };
   }, [trends]);
 
@@ -160,33 +173,78 @@ export default function DashboardScreen() {
 
             <View style={styles.chartContainer}>
               <Text style={styles.chartTitle}>Attendance Trends (Last 5 Weeks)</Text>
-              {trends.length > 0 ? (
-                <LineChart
-                  data={chartData}
-                  width={screenWidth - 48}
-                  height={220}
-                  chartConfig={{
-                    backgroundColor: Colors.surface,
-                    backgroundGradientFrom: Colors.surface,
-                    backgroundGradientTo: Colors.surface,
-                    decimalPlaces: 0,
-                    color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
-                    labelColor: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
-                    style: {
-                      borderRadius: 16,
-                    },
-                    propsForDots: {
-                      r: '4',
-                      strokeWidth: '2',
-                      stroke: Colors.primary,
-                    },
-                  }}
-                  bezier
-                  style={styles.chart}
-                />
+              {chartData ? (
+                <>
+                  <View style={styles.legendContainer}>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} />
+                      <Text style={styles.legendText}>Yuva Kendra</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: Colors.success }]} />
+                      <Text style={styles.legendText}>Bhavferni</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: Colors.warning }]} />
+                      <Text style={styles.legendText}>Pravachan</Text>
+                    </View>
+                  </View>
+                  <View style={styles.chartWrapper}>
+                    <LineChart
+                      data={chartData}
+                      width={chartWidth}
+                      height={220}
+                    chartConfig={{
+                      backgroundColor: Colors.card,
+                      backgroundGradientFrom: Colors.card,
+                      backgroundGradientTo: Colors.card,
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => {
+                        const rgb = '10, 14, 39'; // Colors.foreground
+                        return `rgba(${rgb}, ${opacity})`;
+                      },
+                      labelColor: (opacity = 1) => {
+                        const rgb = '100, 116, 139'; // Colors.mutedForeground
+                        return `rgba(${rgb}, ${opacity})`;
+                      },
+                      fillShadowGradient: Colors.primary,
+                      fillShadowGradientOpacity: 0.1,
+                      strokeWidth: 2,
+                      barPercentage: 0.7,
+                      propsForBackgroundLines: {
+                        strokeDasharray: '',
+                        stroke: Colors.border,
+                        strokeWidth: 1,
+                      },
+                      propsForDots: {
+                        r: '5',
+                        strokeWidth: '2',
+                        stroke: Colors.primary,
+                        fill: Colors.card,
+                      },
+                      propsForLabels: {
+                        fontSize: 11,
+                      },
+                    }}
+                    bezier
+                    style={styles.chart}
+                    withVerticalLabels={true}
+                    withHorizontalLabels={true}
+                    withInnerLines={true}
+                    withOuterLines={false}
+                    withVerticalLines={false}
+                    withHorizontalLines={true}
+                    withDots={true}
+                    withShadow={false}
+                    withLegend={false}
+                    />
+                  </View>
+                </>
               ) : (
                 <View style={styles.noDataContainer}>
+                  <MaterialCommunityIcons name="chart-line" size={48} color={Colors.mutedForeground} />
                   <Text style={styles.noDataText}>No attendance data available</Text>
+                  <Text style={styles.noDataSubtext}>Create reports to see trends</Text>
                 </View>
               )}
             </View>
@@ -250,7 +308,7 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     backgroundColor: Colors.card,
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
@@ -259,23 +317,59 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  chartWrapper: {
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
   chartTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.foreground,
     marginBottom: 16,
   },
+  legendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: Colors.mutedForeground,
+    fontWeight: '500',
+  },
   chart: {
-    borderRadius: 16,
+    borderRadius: 8,
+    marginTop: 8,
   },
   noDataContainer: {
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   noDataText: {
-    color: Colors.textSecondary,
+    color: Colors.mutedForeground,
     fontSize: 16,
+    fontWeight: '500',
+    marginTop: 12,
+  },
+  noDataSubtext: {
+    color: Colors.mutedForeground,
+    fontSize: 14,
+    marginTop: 4,
   },
 });
 

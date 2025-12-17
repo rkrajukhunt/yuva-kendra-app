@@ -260,7 +260,7 @@ export default function AdminManagementScreen() {
             setShowForm(true);
           }}
         >
-          <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+          <MaterialCommunityIcons name="plus" size={24} color={Colors.primaryForeground} />
           <Text style={styles.addButtonText}>Add {activeTab.slice(0, -1)}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -555,7 +555,7 @@ function ManagementForm({
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.primaryForeground} />
             ) : (
               <Text style={styles.saveFormButtonText}>Save</Text>
             )}
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   addButtonText: {
-    color: '#fff',
+    color: Colors.primaryForeground,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   saveFormButtonText: {
-    color: '#fff',
+    color: Colors.primaryForeground,
     fontSize: 16,
     fontWeight: '600',
   },
