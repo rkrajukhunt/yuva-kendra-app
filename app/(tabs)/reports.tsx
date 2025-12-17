@@ -22,6 +22,7 @@ import { Colors } from '../../constants/Colors';
 import { formatDate } from '../../utils/dateHelpers';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Dropdown from '../../components/Dropdown';
+import { handleError } from '../../utils/errorHandler';
 
 export default function ReportsScreen() {
   const { user } = useAuth();
@@ -30,7 +31,10 @@ export default function ReportsScreen() {
   const [cities, setCities] = useState<City[]>([]);
   const [kendras, setKendras] = useState<Kendra[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -47,7 +51,6 @@ export default function ReportsScreen() {
 
   // Memoize filtered reports for performance
   const filteredReports = useMemo(() => {
-    console.log('Filtering reports. Total reports:', reports.length, 'Search query:', debouncedSearchQuery);
     let filtered = [...reports];
 
     // Search filter (client-side only for search) - use debounced query
@@ -58,36 +61,47 @@ export default function ReportsScreen() {
           report.kendra?.kendra_name?.toLowerCase().includes(query) ||
           report.description?.toLowerCase().includes(query)
       );
-      console.log('After search filter:', filtered.length, 'reports');
     }
 
-    console.log('Final filtered reports:', filtered.length);
     return filtered;
   }, [reports, debouncedSearchQuery]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (reset = true) => {
     try {
-      if (!user) {
-        console.log('No user found, skipping load');
-        return;
+      if (!user) return;
+
+      if (reset) {
+        setLoading(true);
+        setPage(0);
+      } else {
+        setLoadingMore(true);
       }
 
-      setLoading(true);
+      const currentPage = reset ? 0 : page;
+      const pageSize = 20;
+      const offset = currentPage * pageSize;
 
-      // Load reports with filters applied at database level
-      // Limit to 100 reports initially for better performance
-      // Pass kendra_id directly to avoid extra query for members
-      console.log('Loading reports with filters:', JSON.stringify(filters, null, 2));
-      console.log('User:', { id: user.id, role: user.role, kendra_id: user.kendra_id });
-      const reportsData = await getReports(filters, user.id, user.role, 100, user.kendra_id);
-      console.log('Reports loaded:', reportsData.length, 'reports');
-      if (reportsData.length > 0) {
-        console.log('First report sample:', JSON.stringify(reportsData[0], null, 2));
+      // Load reports with pagination
+      const result = await getReports(
+        filters, 
+        user.id, 
+        user.role, 
+        pageSize, 
+        user.kendra_id,
+        offset
+      );
+
+      if (reset) {
+        setReports(result.data);
+      } else {
+        setReports(prev => [...prev, ...result.data]);
       }
-      setReports(reportsData);
+      
+      setHasMore(result.hasMore);
+      setPage(currentPage + 1);
 
       // Load cities/kendras for admin (needed for filters)
-      if (user.role === 'admin') {
+      if (user.role === 'admin' && reset) {
         const [citiesData, kendrasData] = await Promise.all([
           getCities(),
           getKendras(),
@@ -95,20 +109,18 @@ export default function ReportsScreen() {
         setCities(citiesData);
         setKendras(kendrasData);
       }
-    } catch (error: any) {
-      console.error('Error loading reports:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      Alert.alert('Error', error?.message || 'Failed to load reports. Please try again.');
+    } catch (error) {
+      handleError(error, 'Reports: loadData');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [user?.id, user?.role, user?.kendra_id, filters.kendraId, filters.cityId, filters.type, filters.dateFrom, filters.dateTo, filters.currentYear, filters.lastYear]);
+  }, [user?.id, user?.role, user?.kendra_id, page, filters.kendraId, filters.cityId, filters.type, filters.dateFrom, filters.dateTo, filters.currentYear, filters.lastYear]);
 
   useEffect(() => {
     if (user?.id) {
-      console.log('useEffect triggered - loading data');
-      loadData();
+      loadData(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.role, filters.kendraId, filters.cityId, filters.type, filters.dateFrom, filters.dateTo, filters.currentYear, filters.lastYear]);
@@ -124,8 +136,14 @@ export default function ReportsScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadData();
+    loadData(true);
   }, [loadData]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      loadData(false);
+    }
+  }, [loadingMore, hasMore, loading, loadData]);
 
   const renderReportItem = useCallback(({ item }: { item: WeeklyReport }) => {
     return (
@@ -203,38 +221,48 @@ export default function ReportsScreen() {
     );
   }, [router]);
 
-  // Show loading skeleton only on initial load
-  const isInitialLoad = loading && reports.length === 0;
-
-  if (isInitialLoad) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <View style={styles.searchContainer}>
-            <MaterialCommunityIcons name="magnify" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search reports..."
-              placeholderTextColor={Colors.textSecondary}
-              editable={false}
-            />
+  // Skeleton loader component
+  const renderSkeletonItem = () => (
+    <View style={styles.reportCard}>
+      <View style={styles.reportHeader}>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.skeletonDate} />
+      </View>
+      <View style={styles.statsRow}>
+        {[1, 2, 3, 4].map((i) => (
+          <View key={i} style={styles.skeletonStatCard}>
+            <View style={styles.skeletonStatIcon} />
+            <View style={styles.skeletonStatValue} />
+            <View style={styles.skeletonStatLabel} />
           </View>
-          {user?.role === 'admin' && (
-            <TouchableOpacity style={styles.filterButton} disabled>
-              <MaterialCommunityIcons name="filter" size={20} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.addButton} disabled>
-            <MaterialCommunityIcons name="plus" size={24} color={Colors.primaryForeground} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading reports...</Text>
-        </View>
-      </SafeAreaView>
+        ))}
+      </View>
+      <View style={styles.skeletonFooter} />
+    </View>
+  );
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={Colors.primary} />
+        <Text style={styles.footerLoaderText}>Loading more...</Text>
+      </View>
     );
-  }
+  };
+
+  const renderEmpty = () => {
+    if (loading) return null;
+    return (
+      <View style={styles.emptyContainer}>
+        <MaterialCommunityIcons name="file-document-outline" size={64} color={Colors.mutedForeground} />
+        <Text style={styles.emptyTitle}>No Reports Found</Text>
+        <Text style={styles.emptySubtitle}>
+          {searchQuery ? 'Try adjusting your search' : 'Get started by creating your first report'}
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -365,37 +393,34 @@ export default function ReportsScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <FlatList
-        data={filteredReports}
-        renderItem={renderReportItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          filteredReports.length === 0 && styles.emptyListContent,
-        ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.emptyContainer}>
-              <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.emptyText}>Loading reports...</Text>
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No reports found</Text>
-            </View>
-          )
-        }
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-        removeClippedSubviews={true}
-        getItemLayout={(data, index) => ({
-          length: 150, // Approximate item height
-          offset: 150 * index,
-          index,
-        })}
-      />
+      {loading && reports.length === 0 ? (
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          renderItem={renderSkeletonItem}
+          keyExtractor={(item) => `skeleton-${item}`}
+          contentContainerStyle={styles.listContent}
+          scrollEnabled={false}
+        />
+      ) : (
+        <FlatList
+          data={filteredReports}
+          renderItem={renderReportItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[
+            styles.listContent,
+            filteredReports.length === 0 && styles.emptyListContent,
+          ]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews={true}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -667,6 +692,76 @@ const styles = StyleSheet.create({
     color: Colors.primaryForeground,
     fontSize: 16,
     fontWeight: '600',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.foreground,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+  },
+  footerLoader: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: Colors.mutedForeground,
+  },
+  skeletonTitle: {
+    height: 16,
+    width: '60%',
+    backgroundColor: Colors.muted,
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonDate: {
+    height: 12,
+    width: '40%',
+    backgroundColor: Colors.muted,
+    borderRadius: 4,
+  },
+  skeletonStatCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.muted,
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    justifyContent: 'center',
+  },
+  skeletonStatIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.border,
+    marginBottom: 8,
+  },
+  skeletonStatValue: {
+    height: 20,
+    width: 40,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  skeletonStatLabel: {
+    height: 10,
+    width: 50,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+  },
+  skeletonFooter: {
+    height: 40,
+    backgroundColor: Colors.muted,
+    borderRadius: 8,
+    marginTop: 12,
   },
 });
 

@@ -14,6 +14,7 @@ import { useAuth } from '../../services/AuthContext';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { handleError, handleValidationError } from '../../utils/errorHandler';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -24,7 +25,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
+      handleValidationError('Please enter both email and password');
       return;
     }
 
@@ -32,8 +33,8 @@ export default function LoginScreen() {
     try {
       await signIn(email, password);
       router.replace('/(tabs)');
-    } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'Invalid email or password');
+    } catch (error) {
+      handleError(error, 'Login: signIn');
     } finally {
       setLoading(false);
     }

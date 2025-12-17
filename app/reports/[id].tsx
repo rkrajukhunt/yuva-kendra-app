@@ -16,6 +16,7 @@ import { WeeklyReport } from '../../types';
 import { Colors } from '../../constants/Colors';
 import { formatDate } from '../../utils/dateHelpers';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { handleError } from '../../utils/errorHandler';
 
 export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,8 +35,7 @@ export default function ReportDetailScreen() {
       const reportData = await getReportById(id);
       setReport(reportData);
     } catch (error) {
-      console.error('Error loading report:', error);
-      Alert.alert('Error', 'Failed to load report');
+      handleError(error, 'ReportDetail: loadReport');
     } finally {
       setLoading(false);
     }

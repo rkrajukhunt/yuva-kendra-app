@@ -20,6 +20,7 @@ import { getWeekStartDate, isValidReportDate } from '../../utils/dateHelpers';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Dropdown from '../../components/Dropdown';
+import { handleError, handleValidationError } from '../../utils/errorHandler';
 
 export default function CreateReportScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -80,8 +81,7 @@ export default function CreateReportScreen() {
         }
       }
     } catch (error) {
-      console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load data');
+      handleError(error, 'CreateReport: loadData');
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ export default function CreateReportScreen() {
     });
 
     if (!validation.valid) {
-      Alert.alert('Validation Error', validation.message);
+      handleValidationError(validation.message || 'Please check your input');
       return;
     }
 
@@ -126,8 +126,8 @@ export default function CreateReportScreen() {
       }
 
       router.back();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save report');
+    } catch (error) {
+      handleError(error, 'CreateReport: save');
     } finally {
       setSaving(false);
     }

@@ -12,55 +12,35 @@ import { useRouter, Redirect } from 'expo-router';
 import { useAuth } from '../../services/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { handleError } from '../../utils/errorHandler';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const router = useRouter();
 
   const handleLogout = () => {
-    console.log('Logout button clicked');
-    
-    // On web, use confirm dialog; on native, use Alert
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const confirmed = window.confirm('Are you sure you want to logout?');
-      if (!confirmed) {
-        console.log('Logout cancelled');
-        return;
-      }
-      // If confirmed on web, proceed directly
-      performLogout();
-    } else {
-      Alert.alert(
-        'Logout',
-        'Are you sure you want to logout?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => console.log('Logout cancelled') },
-          {
-            text: 'Logout',
-            style: 'destructive',
-            onPress: () => {
-              performLogout();
-            },
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              // Wait a moment for auth state to update, then navigate
+              setTimeout(() => {
+                router.replace('/(auth)/login');
+              }, 200);
+            } catch (error) {
+              handleError(error, 'Profile: logout');
+            }
           },
-        ],
-        { cancelable: true }
-      );
-    }
-  };
-
-  const performLogout = async () => {
-    console.log('Logout confirmed, signing out...');
-    try {
-      await signOut();
-      console.log('Sign out successful, navigating to login...');
-      // Wait a moment for auth state to update, then navigate
-      setTimeout(() => {
-        router.replace('/(auth)/login');
-      }, 200);
-    } catch (error: any) {
-      console.error('Logout error:', error);
-      Alert.alert('Error', error.message || 'Failed to logout. Please try again.');
-    }
+        },
+      ]
+    );
   };
 
   return (

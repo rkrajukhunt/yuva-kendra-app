@@ -7,15 +7,21 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  TouchableOpacity,
+  Platform,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../services/AuthContext';
 import { getDashboardStats, getAttendanceTrends } from '../../services/databaseService';
 import { DashboardStats } from '../../types';
-import { Colors } from '../../constants/Colors';
+import { Colors, borderRadius } from '../../constants/Colors';
 import { LineChart } from 'react-native-chart-kit';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { shareReportTotals } from '../../services/shareService';
+import { handleError } from '../../utils/errorHandler';
 
 const screenWidth = Dimensions.get('window').width;
 // Calculate chart width: screen width - content padding (32) - chart container padding (32) - safety margin (8)
@@ -27,6 +33,7 @@ export default function DashboardScreen() {
   const [trends, setTrends] = useState<Array<{ week: string; yuva: number; bhavferni: number; pravachan: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sharing, setSharing] = useState<'Yuvan' | 'Yuvti' | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -40,7 +47,7 @@ export default function DashboardScreen() {
       setStats(statsData);
       setTrends(trendsData);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      // Error handling - could show toast notification in future
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -63,6 +70,22 @@ export default function DashboardScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
+  };
+
+  const handleShareReport = async (reportType: 'Yuvan' | 'Yuvti') => {
+    try {
+      setSharing(reportType);
+      await shareReportTotals(
+        reportType,
+        user?.id,
+        user?.role,
+        user?.kendra_id
+      );
+    } catch (error) {
+      handleError(error, `Dashboard: share ${reportType} report`);
+    } finally {
+      setSharing(null);
+    }
   };
 
   const chartData = useMemo(() => {
@@ -162,6 +185,42 @@ export default function DashboardScreen() {
               <View style={styles.statCard}>
                 <Text style={styles.statValue}>{stats.avgBhavferniAttendance.toFixed(1)}</Text>
                 <Text style={styles.statLabel}>Avg Bhavferni</Text>
+              </View>
+            </View>
+
+            {/* Share Report Buttons */}
+            <View style={styles.shareSection}>
+              <View style={styles.shareHeader}>
+                <MaterialCommunityIcons name="share-variant" size={20} color={Colors.primary} />
+                <Text style={styles.shareSectionTitle}>Share Reports</Text>
+              </View>
+              <View style={styles.shareButtonsContainer}>
+                <TouchableOpacity
+                  style={[styles.shareButton, styles.yuvanShareButton, sharing === 'Yuvan' && styles.shareButtonDisabled]}
+                  onPress={() => handleShareReport('Yuvan')}
+                  activeOpacity={0.7}
+                  disabled={!!sharing}
+                >
+                  {sharing === 'Yuvan' ? (
+                    <ActivityIndicator size="small" color={Colors.primaryForeground} />
+                  ) : (
+                    <MaterialCommunityIcons name="whatsapp" size={24} color="#25D366" />
+                  )}
+                  <Text style={styles.shareButtonText}>Yuva Report</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.shareButton, styles.yuvtiShareButton, sharing === 'Yuvti' && styles.shareButtonDisabled]}
+                  onPress={() => handleShareReport('Yuvti')}
+                  activeOpacity={0.7}
+                  disabled={!!sharing}
+                >
+                  {sharing === 'Yuvti' ? (
+                    <ActivityIndicator size="small" color={Colors.primaryForeground} />
+                  ) : (
+                    <MaterialCommunityIcons name="whatsapp" size={24} color="#25D366" />
+                  )}
+                  <Text style={styles.shareButtonText}>Yuvti Report</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -356,6 +415,56 @@ const styles = StyleSheet.create({
     color: Colors.mutedForeground,
     fontSize: 14,
     marginTop: 4,
+  },
+  shareSection: {
+    backgroundColor: Colors.card,
+    borderRadius: borderRadius,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  shareHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  shareSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.foreground,
+  },
+  shareButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  shareButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: borderRadius,
+    gap: 8,
+    borderWidth: 1,
+  },
+  yuvanShareButton: {
+    backgroundColor: Colors.primary + '10',
+    borderColor: Colors.primary + '30',
+  },
+  yuvtiShareButton: {
+    backgroundColor: '#fce7f3',
+    borderColor: '#f9a8d4',
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.foreground,
+  },
+  shareButtonDisabled: {
+    opacity: 0.6,
   },
 });
 

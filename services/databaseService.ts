@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { WeeklyReport, City, Kendra, User, DashboardStats, ReportFilters } from '../types';
 import { getPushpNumber } from '../utils/dateHelpers';
+import { SupabaseReport, SupabaseCreator } from '../types/database';
 
 // Helper function to calculate week_end_date (7 days after week_start_date)
 function getWeekEndDate(weekStartDate: string): string {
@@ -15,8 +16,9 @@ export async function getReports(
   userId?: string, 
   userRole?: string,
   limit?: number,
-  userKendraId?: string
-): Promise<WeeklyReport[]> {
+  userKendraId?: string,
+  offset?: number
+): Promise<{ data: WeeklyReport[]; hasMore: boolean; total?: number }> {
   // Query reports with kendra and city relationships
   // Note: creator info is fetched separately if needed since foreign key may not exist
   let query = supabase
@@ -36,12 +38,12 @@ export async function getReports(
     `)
     .order('week_start_date', { ascending: false });
 
-  // Add limit to prevent loading too many records at once
-  if (limit) {
-    query = query.limit(limit);
+  // Add pagination
+  const pageLimit = limit || 20; // Default 20 reports per page for better performance
+  if (offset !== undefined) {
+    query = query.range(offset, offset + pageLimit - 1);
   } else {
-    // Default limit of 100 reports
-    query = query.limit(100);
+    query = query.limit(pageLimit);
   }
 
   // Role-based filtering
@@ -60,10 +62,10 @@ export async function getReports(
       if (profile?.kendra_id) {
         query = query.eq('kendra_id', profile.kendra_id);
       } else {
-        return []; // Member without kendra assignment
+        return { data: [], hasMore: false, total: 0 }; // Member without kendra assignment
       }
     } else {
-      return []; // Member without user info
+      return { data: [], hasMore: false, total: 0 }; // Member without user info
     }
   }
 
@@ -95,35 +97,34 @@ export async function getReports(
   const { data, error } = await query;
 
   if (error) {
-    console.error('Supabase query error:', error);
     throw error;
   }
 
-  console.log('Raw reports data:', data?.length || 0, 'reports');
-
   if (!data || data.length === 0) {
-    console.log('No reports found in database');
-    return [];
+    return { data: [], hasMore: false, total: 0 };
   }
 
+  // Check if there are more records (if we got exactly the limit, there might be more)
+  const hasMore = data.length === pageLimit;
+
   // Filter by city and type in memory (after join) - optimized
-  let filteredData = data;
+  let filteredData = data as SupabaseReport[];
   if (filters) {
     if (filters.cityId) {
-      filteredData = filteredData.filter((report: any) => 
+      filteredData = filteredData.filter((report) => 
         report.kendra?.city?.id === filters.cityId
       );
     }
     if (filters.type) {
-      filteredData = filteredData.filter((report: any) => 
+      filteredData = filteredData.filter((report) => 
         report.kendra?.kendra_type === filters.type
       );
     }
   }
 
   // Fetch all unique creator IDs and batch fetch their info
-  const creatorIds = [...new Set(filteredData.map((r: any) => r.created_by).filter(Boolean))];
-  const creatorsMap = new Map();
+  const creatorIds = [...new Set(filteredData.map((r) => r.created_by).filter(Boolean))];
+  const creatorsMap = new Map<string, SupabaseCreator>();
   
   if (creatorIds.length > 0) {
     try {
@@ -133,17 +134,17 @@ export async function getReports(
         .in('id', creatorIds);
       
       if (creatorsData) {
-        creatorsData.forEach((creator: any) => {
+        creatorsData.forEach((creator: SupabaseCreator) => {
           creatorsMap.set(creator.id, creator);
         });
       }
     } catch (error) {
-      console.warn('Could not fetch creator info:', error);
+      // Silently fail - creator info is optional
     }
   }
 
   // Optimize mapping - only transform what we need
-  return filteredData.map((report: any) => {
+  const mappedReports = filteredData.map((report) => {
     const kendra = report.kendra;
     const city = kendra?.city;
     
@@ -175,6 +176,8 @@ export async function getReports(
       creator: report.created_by ? creatorsMap.get(report.created_by) || null : null,
     };
   });
+
+  return { data: mappedReports, hasMore, total: mappedReports.length };
 }
 
 export async function getReportById(id: string): Promise<WeeklyReport | null> {
@@ -210,7 +213,7 @@ export async function getReportById(id: string): Promise<WeeklyReport | null> {
         .single();
       creator = creatorData;
     } catch (error) {
-      console.warn('Could not fetch creator info:', error);
+      // Silently fail - creator info is optional
     }
   }
 
@@ -289,7 +292,7 @@ export async function createReport(report: Omit<WeeklyReport, 'id' | 'created_at
         .single();
       creator = creatorData;
     } catch (error) {
-      console.warn('Could not fetch creator info:', error);
+      // Silently fail - creator info is optional
     }
   }
 
@@ -385,7 +388,7 @@ export async function createCity(city: Omit<City, 'id' | 'created_at'>): Promise
 }
 
 export async function updateCity(id: string, updates: Partial<City>): Promise<City> {
-  const dbUpdates: any = {};
+  const dbUpdates: Record<string, unknown> = {};
   if (updates.city_name !== undefined) dbUpdates.city_name = updates.city_name;
   if (updates.pin_code !== undefined) dbUpdates.pin_code = updates.pin_code;
 
@@ -431,7 +434,21 @@ export async function getKendras(cityId?: string): Promise<Kendra[]> {
 
   if (error) throw error;
 
-  return (data || []).map((kendra: any) => ({
+  interface SupabaseKendra {
+    id: string;
+    kendra_name: string;
+    city_id: string;
+    kendra_type: 'Yuvan' | 'Yuvti';
+    created_at: string;
+    city?: {
+      id: string;
+      city_name: string;
+      pin_code: string;
+      created_at: string;
+    };
+  }
+
+  return (data || []).map((kendra: SupabaseKendra) => ({
     id: kendra.id,
     kendra_name: kendra.kendra_name,
     city_id: kendra.city_id,
@@ -482,7 +499,7 @@ export async function createKendra(kendra: Omit<Kendra, 'id' | 'created_at' | 'c
 }
 
 export async function updateKendra(id: string, updates: Partial<Kendra>): Promise<Kendra> {
-  const dbUpdates: any = {};
+  const dbUpdates: Record<string, unknown> = {};
   if (updates.kendra_name !== undefined) dbUpdates.kendra_name = updates.kendra_name;
   if (updates.city_id !== undefined) dbUpdates.city_id = updates.city_id;
   if (updates.kendra_type !== undefined) dbUpdates.kendra_type = updates.kendra_type;
@@ -553,7 +570,21 @@ export async function getUsers(filters?: { cityId?: string; kendraId?: string })
 
   if (error) throw error;
 
-  let users = (data || []).map((user: any) => ({
+  interface SupabaseUser {
+    id: string;
+    email: string;
+    name: string;
+    role: 'admin' | 'member';
+    kendra_id?: string;
+    created_at: string;
+    kendra?: {
+      city?: {
+        id: string;
+      };
+    };
+  }
+
+  let users = (data || []).map((user: SupabaseUser) => ({
     id: user.id,
     email: user.email || '',
     name: user.name || '',
@@ -564,8 +595,8 @@ export async function getUsers(filters?: { cityId?: string; kendraId?: string })
 
   // Filter by city in memory
   if (filters?.cityId) {
-    users = users.filter((user: any) => {
-      const userData = data?.find((u: any) => u.id === user.id);
+    users = users.filter((user) => {
+      const userData = data?.find((u: SupabaseUser) => u.id === user.id);
       return userData?.kendra?.city?.id === filters.cityId;
     });
   }
@@ -692,7 +723,10 @@ export async function getDashboardStats(userId?: string, userRole?: string, kend
       .from('weekly_reports')
       .select('kendra_id');
 
-    const uniqueKendras = new Set((reportsWithKendras || []).map((r: any) => r.kendra_id));
+    interface ReportKendra {
+      kendra_id: string;
+    }
+    const uniqueKendras = new Set((reportsWithKendras || []).map((r: ReportKendra) => r.kendra_id));
     stats.activeKendras = uniqueKendras.size;
   } else if (userRole === 'member' && kendraId) {
     // Get last week's total attendance for member
@@ -741,7 +775,14 @@ export async function getAttendanceTrends(userId?: string, userRole?: string, ke
   // Group by week and aggregate data
   const weekMap = new Map<string, { yuva: number; bhavferni: number; pravachan: number; count: number }>();
 
-  (data || []).forEach((report: any) => {
+  interface TrendReport {
+    week_start_date: string;
+    yuva_kendra_attendance: number;
+    bhavferni_attendance: number;
+    pravachan_attendance: number;
+  }
+
+  (data || []).forEach((report: TrendReport) => {
     const week = report.week_start_date;
     if (!weekMap.has(week)) {
       weekMap.set(week, { yuva: 0, bhavferni: 0, pravachan: 0, count: 0 });

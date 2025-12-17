@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return null;
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      // Silently fail - will fallback to auth user metadata
       return null;
     }
   };
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       }
     } catch (error) {
-      console.error('Error refreshing user:', error);
+      // Silently fail - user will need to re-authenticate
       setUser(null);
     }
   };
@@ -114,7 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Sign out error:', error);
         throw error;
       }
       // Clear user state immediately
@@ -122,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ensure session is cleared
       await supabase.auth.getSession();
     } catch (error) {
-      console.error('Error during sign out:', error);
       throw error;
     }
   };

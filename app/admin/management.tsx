@@ -66,8 +66,7 @@ export default function AdminManagementScreen() {
       setKendras(kendrasData);
       setUsers(usersData);
     } catch (error) {
-      console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load data. Please try again.');
+      handleError(error, 'Management: loadData');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -97,8 +96,8 @@ export default function AdminManagementScreen() {
                 await deleteUser(id);
               }
               loadData();
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete');
+            } catch (error) {
+              handleError(error, `Management: delete ${type}`);
             }
           },
         },
@@ -450,7 +449,12 @@ function ManagementForm({
   onClose: () => void;
   onSave: () => void;
 }) {
-  const [formData, setFormData] = useState<any>({});
+  type FormData = 
+    | (City & { city_name?: string; pin_code?: string })
+    | (Kendra & { kendra_name?: string; city_id?: string; kendra_type?: 'Yuvan' | 'Yuvti' })
+    | (User & { name?: string; email?: string; password?: string; role?: 'admin' | 'member'; kendra_id?: string });
+
+  const [formData, setFormData] = useState<Partial<FormData>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -512,8 +516,8 @@ function ManagementForm({
       }
 
       onSave();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save');
+    } catch (error) {
+      handleError(error, `Management: save ${type}`);
     } finally {
       setSaving(false);
     }
