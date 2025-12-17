@@ -129,45 +129,77 @@ export default function ReportsScreen() {
 
   const renderReportItem = useCallback(({ item }: { item: WeeklyReport }) => {
     return (
-    <TouchableOpacity
-      style={styles.reportCard}
-      onPress={() => router.push(`/reports/${item.id}`)}
-    >
-      <View style={styles.reportHeader}>
-        <View style={styles.reportTitleContainer}>
-          <Text style={styles.reportKendra}>{item.kendra?.kendra_name || 'Unknown Kendra'}</Text>
-          <Text style={styles.reportDate}>{formatDate(item.week_start_date)}</Text>
-        </View>
-        {item.kendra?.kendra_type && (
-          <View style={[styles.typeBadge, item.kendra.kendra_type === 'Yuvan' ? styles.yuvanBadge : styles.yuvtiBadge]}>
-            <Text style={styles.typeBadgeText}>{item.kendra.kendra_type}</Text>
+      <TouchableOpacity
+        style={styles.reportCard}
+        onPress={() => router.push(`/reports/${item.id}`)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.reportHeader}>
+          <View style={styles.reportTitleContainer}>
+            <View style={styles.reportTitleRow}>
+              <MaterialCommunityIcons 
+                name="office-building" 
+                size={18} 
+                color={Colors.primary} 
+                style={styles.headerIcon}
+              />
+              <Text style={styles.reportKendra}>{item.kendra?.kendra_name || 'Unknown Kendra'}</Text>
+            </View>
+            <View style={styles.reportMetaRow}>
+              <MaterialCommunityIcons name="calendar" size={14} color={Colors.mutedForeground} />
+              <Text style={styles.reportDate}>{formatDate(item.week_start_date)}</Text>
+              {item.kendra?.city?.city_name && (
+                <>
+                  <Text style={styles.metaSeparator}>•</Text>
+                  <MaterialCommunityIcons name="map-marker" size={14} color={Colors.mutedForeground} />
+                  <Text style={styles.reportCity}>{item.kendra.city.city_name}</Text>
+                </>
+              )}
+            </View>
           </View>
-        )}
-      </View>
-      <View style={styles.reportStats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Yuva</Text>
-          <Text style={styles.statValue}>{item.yuva_kendra_attendance}</Text>
+          {item.kendra?.kendra_type && (
+            <View style={[styles.typeBadge, item.kendra.kendra_type === 'Yuvan' ? styles.yuvanBadge : styles.yuvtiBadge]}>
+              <Text style={styles.typeBadgeText}>{item.kendra.kendra_type}</Text>
+            </View>
+          )}
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Bhavferni</Text>
-          <Text style={styles.statValue}>{item.bhavferni_attendance}</Text>
+
+        <View style={styles.reportStats}>
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <MaterialCommunityIcons name="account-group" size={20} color={Colors.primary} />
+            </View>
+            <Text style={styles.statValue}>{item.yuva_kendra_attendance}</Text>
+            <Text style={styles.statLabel}>Yuva</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: Colors.success + '15' }]}>
+              <MaterialCommunityIcons name="account-multiple" size={20} color={Colors.success} />
+            </View>
+            <Text style={styles.statValue}>{item.bhavferni_attendance}</Text>
+            <Text style={styles.statLabel}>Bhavferni</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: Colors.warning + '15' }]}>
+              <MaterialCommunityIcons name="microphone" size={20} color={Colors.warning} />
+            </View>
+            <Text style={styles.statValue}>{item.pravachan_attendance}</Text>
+            <Text style={styles.statLabel}>Pravachan</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: Colors.info + '15' }]}>
+              <MaterialCommunityIcons name="book-open-variant" size={20} color={Colors.info} />
+            </View>
+            <Text style={styles.statValue}>{item.pushp_no}</Text>
+            <Text style={styles.statLabel}>Pushp</Text>
+          </View>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Pravachan</Text>
-          <Text style={styles.statValue}>{item.pravachan_attendance}</Text>
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.viewDetailsText}>View Details</Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.mutedForeground} />
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Pushp</Text>
-          <Text style={styles.statValue}>{item.pushp_no}</Text>
-        </View>
-      </View>
-      {item.description && (
-        <Text style={styles.reportDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-      )}
-    </TouchableOpacity>
+      </TouchableOpacity>
     );
   }, [router]);
 
@@ -430,75 +462,137 @@ const styles = StyleSheet.create({
   },
   reportCard: {
     backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 8,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   reportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   reportTitleContainer: {
     flex: 1,
+    marginRight: 12,
+  },
+  reportTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  headerIcon: {
+    marginRight: 6,
   },
   reportKendra: {
     fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
+    fontWeight: '700',
+    color: Colors.foreground,
+    letterSpacing: -0.3,
+  },
+  reportMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   reportDate: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    color: Colors.mutedForeground,
+    marginLeft: 2,
+  },
+  reportCity: {
+    fontSize: 13,
+    color: Colors.mutedForeground,
+    marginLeft: 2,
+  },
+  metaSeparator: {
+    fontSize: 13,
+    color: Colors.mutedForeground,
+    marginHorizontal: 4,
   },
   typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
   },
   yuvanBadge: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: Colors.primary + '10',
+    borderColor: Colors.primary + '30',
   },
   yuvtiBadge: {
     backgroundColor: '#fce7f3',
+    borderColor: '#f9a8d4',
   },
   typeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   reportStats: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 12,
-    paddingTop: 12,
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    gap: 8,
   },
-  statItem: {
+  statCard: {
+    flex: 1,
     alignItems: 'center',
+    backgroundColor: Colors.muted,
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 80,
+    justifyContent: 'center',
+  },
+  statIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   statLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 4,
+    fontSize: 11,
+    color: Colors.mutedForeground,
+    fontWeight: '500',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.foreground,
+    marginTop: 2,
   },
-  reportDescription: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 12,
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: 4,
+  },
+  viewDetailsText: {
+    fontSize: 13,
+    color: Colors.mutedForeground,
+    fontWeight: '500',
   },
   emptyContainer: {
     padding: 32,
