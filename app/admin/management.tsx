@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../services/AuthContext';
@@ -26,7 +27,7 @@ import {
   deleteUser,
 } from '../../services/databaseService';
 import { City, Kendra, User } from '../../types';
-import { Colors } from '../../constants/Colors';
+import { Colors, borderRadius } from '../../constants/Colors';
 import { validateCityData, validateKendraData, validateUserData } from '../../utils/validation';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Dropdown from '../../components/Dropdown';
@@ -40,6 +41,7 @@ export default function AdminManagementScreen() {
   const [kendras, setKendras] = useState<Kendra[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<City | Kendra | User | null>(null);
@@ -48,9 +50,13 @@ export default function AdminManagementScreen() {
     loadData();
   }, [activeTab]);
 
-  const loadData = async () => {
+  const loadData = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const [citiesData, kendrasData, usersData] = await Promise.all([
         getCities(),
         getKendras(),
@@ -61,11 +67,16 @@ export default function AdminManagementScreen() {
       setUsers(usersData);
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load data');
+      Alert.alert('Error', 'Failed to load data. Please try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+    loadData(true);
+  }, []);
 
   const handleDelete = async (type: Tab, id: string, name: string) => {
     Alert.alert(
@@ -120,149 +131,287 @@ export default function AdminManagementScreen() {
     );
   }
 
+  const filteredItems = filteredData();
+  const getTabCount = () => {
+    if (activeTab === 'users') return users.length;
+    if (activeTab === 'cities') return cities.length;
+    return kendras.length;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'users' && styles.tabActive]}
-          onPress={() => setActiveTab('users')}
+          onPress={() => {
+            setActiveTab('users');
+            setSearchQuery('');
+          }}
         >
+          <MaterialCommunityIcons
+            name="account-group"
+            size={20}
+            color={activeTab === 'users' ? Colors.primary : Colors.mutedForeground}
+          />
           <Text style={[styles.tabText, activeTab === 'users' && styles.tabTextActive]}>
             Users
           </Text>
+          {users.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{users.length}</Text>
+            </View>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'cities' && styles.tabActive]}
-          onPress={() => setActiveTab('cities')}
+          onPress={() => {
+            setActiveTab('cities');
+            setSearchQuery('');
+          }}
         >
+          <MaterialCommunityIcons
+            name="city"
+            size={20}
+            color={activeTab === 'cities' ? Colors.primary : Colors.mutedForeground}
+          />
           <Text style={[styles.tabText, activeTab === 'cities' && styles.tabTextActive]}>
             Cities
           </Text>
+          {cities.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{cities.length}</Text>
+            </View>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'kendras' && styles.tabActive]}
-          onPress={() => setActiveTab('kendras')}
+          onPress={() => {
+            setActiveTab('kendras');
+            setSearchQuery('');
+          }}
         >
+          <MaterialCommunityIcons
+            name="office-building"
+            size={20}
+            color={activeTab === 'kendras' ? Colors.primary : Colors.mutedForeground}
+          />
           <Text style={[styles.tabText, activeTab === 'kendras' && styles.tabTextActive]}>
             Kendras
           </Text>
+          {kendras.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{kendras.length}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
-        <MaterialCommunityIcons name="magnify" size={20} color={Colors.textSecondary} />
+        <MaterialCommunityIcons name="magnify" size={20} color={Colors.mutedForeground} />
         <TextInput
           style={styles.searchInput}
           placeholder={`Search ${activeTab}...`}
-          placeholderTextColor={Colors.textSecondary}
+          placeholderTextColor={Colors.mutedForeground}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <MaterialCommunityIcons name="close-circle" size={20} color={Colors.mutedForeground} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView style={styles.content}>
-        {activeTab === 'cities' && (
-          <View>
-            {filteredData().map((city: City) => (
-              <View key={city.id} style={styles.itemCard}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{city.city_name}</Text>
-                  <Text style={styles.itemSubtext}>PIN: {city.pin_code}</Text>
-                </View>
-                <View style={styles.itemActions}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditingItem(city);
-                      setShowForm(true);
-                    }}
-                  >
-                    <MaterialCommunityIcons name="pencil" size={20} color={Colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete('cities', city.id, city.city_name)}
-                    style={styles.deleteButton}
-                  >
-                    <MaterialCommunityIcons name="delete" size={20} color={Colors.error} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
+      >
+        {filteredItems.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons
+              name={
+                activeTab === 'users'
+                  ? 'account-off'
+                  : activeTab === 'cities'
+                  ? 'city-variant-outline'
+                  : 'office-building-outline'
+              }
+              size={64}
+              color={Colors.mutedForeground}
+            />
+            <Text style={styles.emptyTitle}>
+              {searchQuery ? 'No results found' : `No ${activeTab} yet`}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery
+                ? `Try adjusting your search query`
+                : `Get started by adding your first ${activeTab.slice(0, -1)}`}
+            </Text>
+            {!searchQuery && (
+              <TouchableOpacity
+                style={styles.emptyAddButton}
+                onPress={() => {
+                  setEditingItem(null);
+                  setShowForm(true);
+                }}
+              >
+                <MaterialCommunityIcons name="plus" size={20} color={Colors.primaryForeground} />
+                <Text style={styles.emptyAddButtonText}>Add {activeTab.slice(0, -1)}</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        )}
-
-        {activeTab === 'kendras' && (
-          <View>
-            {filteredData().map((kendra: Kendra) => (
-              <View key={kendra.id} style={styles.itemCard}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{kendra.kendra_name}</Text>
-                  <Text style={styles.itemSubtext}>
-                    {kendra.city?.city_name} • {kendra.kendra_type}
-                  </Text>
-                </View>
-                <View style={styles.itemActions}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditingItem(kendra);
-                      setShowForm(true);
-                    }}
-                  >
-                    <MaterialCommunityIcons name="pencil" size={20} color={Colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete('kendras', kendra.id, kendra.kendra_name)}
-                    style={styles.deleteButton}
-                  >
-                    <MaterialCommunityIcons name="delete" size={20} color={Colors.error} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {activeTab === 'users' && (
-          <View>
-            {filteredData().map((userItem: User) => (
-              <View key={userItem.id} style={styles.itemCard}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{userItem.name}</Text>
-                  <Text style={styles.itemSubtext}>{userItem.email}</Text>
-                  <View style={styles.roleBadge}>
-                    <Text style={styles.roleBadgeText}>{userItem.role}</Text>
+        ) : (
+          <>
+            {activeTab === 'cities' && (
+              <View>
+                {filteredItems.map((city: City) => (
+                  <View key={city.id} style={styles.itemCard}>
+                    <View style={styles.itemIconContainer}>
+                      <MaterialCommunityIcons name="city" size={24} color={Colors.primary} />
+                    </View>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{city.city_name}</Text>
+                      <View style={styles.itemMeta}>
+                        <MaterialCommunityIcons
+                          name="map-marker"
+                          size={14}
+                          color={Colors.mutedForeground}
+                        />
+                        <Text style={styles.itemSubtext}>PIN: {city.pin_code}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.itemActions}>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => {
+                          setEditingItem(city);
+                          setShowForm(true);
+                        }}
+                      >
+                        <MaterialCommunityIcons name="pencil" size={18} color={Colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.deleteButton]}
+                        onPress={() => handleDelete('cities', city.id, city.city_name)}
+                      >
+                        <MaterialCommunityIcons name="delete" size={18} color={Colors.destructive} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.itemActions}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditingItem(userItem);
-                      setShowForm(true);
-                    }}
-                  >
-                    <MaterialCommunityIcons name="pencil" size={20} color={Colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete('users', userItem.id, userItem.name)}
-                    style={styles.deleteButton}
-                  >
-                    <MaterialCommunityIcons name="delete" size={20} color={Colors.error} />
-                  </TouchableOpacity>
-                </View>
+                ))}
               </View>
-            ))}
-          </View>
-        )}
+            )}
 
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            setEditingItem(null);
-            setShowForm(true);
-          }}
-        >
-          <MaterialCommunityIcons name="plus" size={24} color={Colors.primaryForeground} />
-          <Text style={styles.addButtonText}>Add {activeTab.slice(0, -1)}</Text>
-        </TouchableOpacity>
+            {activeTab === 'kendras' && (
+              <View>
+                {filteredItems.map((kendra: Kendra) => (
+                  <View key={kendra.id} style={styles.itemCard}>
+                    <View style={styles.itemIconContainer}>
+                      <MaterialCommunityIcons
+                        name="office-building"
+                        size={24}
+                        color={Colors.primary}
+                      />
+                    </View>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{kendra.kendra_name}</Text>
+                      <View style={styles.itemMeta}>
+                        <MaterialCommunityIcons
+                          name="city"
+                          size={14}
+                          color={Colors.mutedForeground}
+                        />
+                        <Text style={styles.itemSubtext}>{kendra.city?.city_name}</Text>
+                        <View style={styles.typeBadge}>
+                          <Text style={styles.typeBadgeText}>{kendra.kendra_type}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.itemActions}>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => {
+                          setEditingItem(kendra);
+                          setShowForm(true);
+                        }}
+                      >
+                        <MaterialCommunityIcons name="pencil" size={18} color={Colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.deleteButton]}
+                        onPress={() => handleDelete('kendras', kendra.id, kendra.kendra_name)}
+                      >
+                        <MaterialCommunityIcons name="delete" size={18} color={Colors.destructive} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {activeTab === 'users' && (
+              <View>
+                {filteredItems.map((userItem: User) => (
+                  <View key={userItem.id} style={styles.itemCard}>
+                    <View style={styles.itemIconContainer}>
+                      <MaterialCommunityIcons
+                        name={userItem.role === 'admin' ? 'account-cog' : 'account'}
+                        size={24}
+                        color={Colors.primary}
+                      />
+                    </View>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{userItem.name}</Text>
+                      <View style={styles.itemMeta}>
+                        <MaterialCommunityIcons
+                          name="email"
+                          size={14}
+                          color={Colors.mutedForeground}
+                        />
+                        <Text style={styles.itemSubtext}>{userItem.email}</Text>
+                      </View>
+                      <View style={styles.roleBadge}>
+                        <Text style={styles.roleBadgeText}>
+                          {userItem.role.charAt(0).toUpperCase() + userItem.role.slice(1)}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.itemActions}>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => {
+                          setEditingItem(userItem);
+                          setShowForm(true);
+                        }}
+                      >
+                        <MaterialCommunityIcons name="pencil" size={18} color={Colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.deleteButton]}
+                        onPress={() => handleDelete('users', userItem.id, userItem.name)}
+                      >
+                        <MaterialCommunityIcons name="delete" size={18} color={Colors.destructive} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => {
+                setEditingItem(null);
+                setShowForm(true);
+              }}
+            >
+              <MaterialCommunityIcons name="plus" size={24} color={Colors.primaryForeground} />
+              <Text style={styles.addButtonText}>Add {activeTab.slice(0, -1)}</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
 
       {showForm && (
@@ -580,38 +729,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    backgroundColor: Colors.card,
   },
   tab: {
     flex: 1,
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    position: 'relative',
+    gap: 4,
   },
   tabActive: {
     borderBottomColor: Colors.primary,
   },
   tabText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    color: Colors.mutedForeground,
+    fontWeight: '500',
   },
   tabTextActive: {
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: Colors.muted,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.foreground,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.card,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    color: Colors.text,
+    fontSize: 15,
+    color: Colors.foreground,
   },
   content: {
     flex: 1,
@@ -619,17 +792,22 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: Colors.card,
-    borderRadius: 12,
+    borderRadius: borderRadius,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 12,
+  },
+  itemIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius,
+    backgroundColor: Colors.muted,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   itemInfo: {
     flex: 1,
@@ -637,46 +815,110 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.foreground,
+    marginBottom: 6,
+  },
+  itemMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 4,
   },
   itemSubtext: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: Colors.mutedForeground,
+  },
+  typeBadge: {
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.accentForeground,
   },
   roleBadge: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.primary,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 4,
     marginTop: 4,
   },
   roleBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primaryForeground,
+    textTransform: 'capitalize',
   },
   itemActions: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 8,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius,
+    backgroundColor: Colors.muted,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   deleteButton: {
-    marginLeft: 8,
+    backgroundColor: Colors.destructive + '15',
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    borderRadius: 12,
+    borderRadius: borderRadius,
     padding: 16,
     marginTop: 16,
+    marginBottom: 8,
     gap: 8,
   },
   addButtonText: {
     color: Colors.primaryForeground,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 64,
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.foreground,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: borderRadius,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  emptyAddButtonText: {
+    color: Colors.primaryForeground,
+    fontSize: 15,
     fontWeight: '600',
   },
   formOverlay: {
@@ -704,8 +946,9 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
+    fontWeight: '700',
+    color: Colors.foreground,
+    letterSpacing: -0.3,
   },
   formContent: {
     padding: 16,
@@ -716,17 +959,17 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.foreground,
     marginBottom: 8,
   },
   formInput: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 8,
+    borderRadius: borderRadius,
     padding: 12,
-    fontSize: 16,
-    color: Colors.text,
+    fontSize: 15,
+    color: Colors.foreground,
     minHeight: 48,
   },
   pickerRow: {
@@ -734,12 +977,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pickerOption: {
+    flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: borderRadius,
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
   },
   pickerOptionSelected: {
     backgroundColor: Colors.primary,
@@ -747,17 +992,19 @@ const styles = StyleSheet.create({
   },
   pickerOptionText: {
     fontSize: 14,
-    color: Colors.text,
+    fontWeight: '600',
+    color: Colors.foreground,
   },
   pickerOptionTextSelected: {
-    color: '#fff',
+    color: Colors.primaryForeground,
   },
   saveFormButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 8,
+    borderRadius: borderRadius,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
+    marginBottom: 8,
   },
   saveFormButtonDisabled: {
     opacity: 0.6,
