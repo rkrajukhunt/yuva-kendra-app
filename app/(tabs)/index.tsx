@@ -134,12 +134,6 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {user?.role === 'admin' ? 'Admin Dashboard' : 'Kendra Dashboard'}
-          </Text>
-        </View>
-
         {stats && (
           <>
             <View style={styles.statsGrid}>
@@ -270,14 +264,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.text,
   },
   statsGrid: {
     flexDirection: 'row',

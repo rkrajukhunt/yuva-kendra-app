@@ -4,7 +4,7 @@ export default function ReportsLayout() {
   return (
     <Stack
       screenOptions={{
-        headerShown: true,
+        headerShown: false,
       }}
     />
   );

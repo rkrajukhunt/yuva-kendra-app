@@ -2,10 +2,12 @@ import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '../../services/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
+  const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
@@ -24,11 +26,42 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: true,
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textSecondary,
+        tabBarInactiveTintColor: Colors.mutedForeground,
         headerStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: Colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: Colors.border,
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        headerTintColor: Colors.text,
+        headerTintColor: Colors.foreground,
+        headerTitleStyle: {
+          fontSize: 20,
+          fontWeight: '700',
+          color: Colors.foreground,
+          letterSpacing: -0.3,
+        },
+        tabBarStyle: {
+          backgroundColor: Colors.card,
+          borderTopWidth: 1,
+          borderTopColor: Colors.border,
+          height: Platform.OS === 'ios' ? 60 + insets.bottom : 64,
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
+          paddingTop: 8,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
       }}
     >
       <Tabs.Screen
@@ -36,8 +69,12 @@ export default function TabsLayout() {
         options={{
           title: user.role === 'admin' ? 'Admin Dashboard' : 'Kendra Dashboard',
           tabBarLabel: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="view-dashboard" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons 
+              name="view-dashboard" 
+              size={focused ? 26 : 24} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -46,8 +83,12 @@ export default function TabsLayout() {
         options={{
           title: 'Reports',
           tabBarLabel: 'Reports',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="file-document" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons 
+              name="file-document" 
+              size={focused ? 26 : 24} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -57,8 +98,12 @@ export default function TabsLayout() {
           options={{
             title: 'Management',
             tabBarLabel: 'Admin',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="account-cog" size={size} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <MaterialCommunityIcons 
+                name="account-cog" 
+                size={focused ? 26 : 24} 
+                color={color} 
+              />
             ),
           }}
         />
@@ -68,8 +113,12 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarLabel: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons 
+              name="account" 
+              size={focused ? 26 : 24} 
+              color={color} 
+            />
           ),
         }}
       />

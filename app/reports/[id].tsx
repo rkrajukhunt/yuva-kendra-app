@@ -252,20 +252,24 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: Colors.card,
+    minHeight: 56,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
+    marginRight: 4,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: Colors.foreground,
-    marginLeft: 12,
+    marginLeft: 4,
+    letterSpacing: -0.3,
   },
   headerActions: {
     flexDirection: 'row',
