@@ -12,6 +12,7 @@ import {
   Modal,
   ScrollView,
   TouchableWithoutFeedback,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -228,7 +229,7 @@ export default function ReportsScreen() {
         <View style={styles.skeletonTitle} />
         <View style={styles.skeletonDate} />
       </View>
-      <View style={styles.statsRow}>
+      <View style={styles.reportStats}>
         {[1, 2, 3, 4].map((i) => (
           <View key={i} style={styles.skeletonStatCard}>
             <View style={styles.skeletonStatIcon} />
@@ -299,98 +300,104 @@ export default function ReportsScreen() {
         transparent
         animationType="slide"
         onRequestClose={() => setShowFilters(false)}
+        statusBarTranslucent={true}
       >
-        <TouchableWithoutFeedback onPress={() => setShowFilters(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Filters</Text>
-                  <TouchableOpacity onPress={() => setShowFilters(false)}>
-                    <MaterialCommunityIcons name="close" size={24} color={Colors.text} />
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setShowFilters(false)}>
+            <View style={styles.modalOverlayBackdrop} />
+          </TouchableWithoutFeedback>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filters</Text>
+              <TouchableOpacity onPress={() => setShowFilters(false)}>
+                <MaterialCommunityIcons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              style={styles.modalScrollView} 
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.filterContent}>
+                <View style={styles.filterRow}>
+                  <Text style={styles.filterLabel}>City</Text>
+                  <Dropdown
+                    options={[
+                      { label: 'All Cities', value: '' },
+                      ...cities.map((city) => ({
+                        label: `${city.city_name} (${city.pin_code})`,
+                        value: city.id,
+                      })),
+                    ]}
+                    value={filters.cityId || ''}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, cityId: value || undefined })
+                    }
+                    placeholder="Select city"
+                  />
+                </View>
+
+                <View style={styles.filterRow}>
+                  <Text style={styles.filterLabel}>Kendra</Text>
+                  <Dropdown
+                    options={[
+                      { label: 'All Kendras', value: '' },
+                      ...kendras
+                        .filter((k) => !filters.cityId || k.city_id === filters.cityId)
+                        .map((kendra) => ({
+                          label: `${kendra.kendra_name} (${kendra.kendra_type})`,
+                          value: kendra.id,
+                        })),
+                    ]}
+                    value={filters.kendraId || ''}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, kendraId: value || undefined })
+                    }
+                    placeholder="Select kendra"
+                  />
+                </View>
+
+                <View style={styles.filterRow}>
+                  <Text style={styles.filterLabel}>Type</Text>
+                  <Dropdown
+                    options={[
+                      { label: 'All Types', value: '' },
+                      { label: 'Yuvan', value: 'Yuvan' },
+                      { label: 'Yuvti', value: 'Yuvti' },
+                    ]}
+                    value={filters.type || ''}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, type: (value ? value as 'Yuvan' | 'Yuvti' : undefined) })
+                    }
+                    placeholder="Select type"
+                  />
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.clearFiltersButton}
+                    onPress={() => {
+                      setFilters({});
+                      setShowFilters(false);
+                    }}
+                  >
+                    <Text style={styles.clearFiltersText}>Clear All Filters</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.applyFiltersButton}
+                    onPress={() => setShowFilters(false)}
+                  >
+                    <Text style={styles.applyFiltersText}>Apply Filters</Text>
                   </TouchableOpacity>
                 </View>
-                
-                <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
-                  <View style={styles.filterContent}>
-                    <View style={styles.filterRow}>
-                      <Text style={styles.filterLabel}>City</Text>
-                      <Dropdown
-                        options={[
-                          { label: 'All Cities', value: '' },
-                          ...cities.map((city) => ({
-                            label: `${city.city_name} (${city.pin_code})`,
-                            value: city.id,
-                          })),
-                        ]}
-                        value={filters.cityId || ''}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, cityId: value || undefined })
-                        }
-                        placeholder="Select city"
-                      />
-                    </View>
-
-                    <View style={styles.filterRow}>
-                      <Text style={styles.filterLabel}>Kendra</Text>
-                      <Dropdown
-                        options={[
-                          { label: 'All Kendras', value: '' },
-                          ...kendras
-                            .filter((k) => !filters.cityId || k.city_id === filters.cityId)
-                            .map((kendra) => ({
-                              label: `${kendra.kendra_name} (${kendra.kendra_type})`,
-                              value: kendra.id,
-                            })),
-                        ]}
-                        value={filters.kendraId || ''}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, kendraId: value || undefined })
-                        }
-                        placeholder="Select kendra"
-                      />
-                    </View>
-
-                    <View style={styles.filterRow}>
-                      <Text style={styles.filterLabel}>Type</Text>
-                      <Dropdown
-                        options={[
-                          { label: 'All Types', value: '' },
-                          { label: 'Yuvan', value: 'Yuvan' },
-                          { label: 'Yuvti', value: 'Yuvti' },
-                        ]}
-                        value={filters.type || ''}
-                        onValueChange={(value) =>
-                          setFilters({ ...filters, type: (value ? value as 'Yuvan' | 'Yuvti' : undefined) })
-                        }
-                        placeholder="Select type"
-                      />
-                    </View>
-
-                    <View style={styles.modalActions}>
-                      <TouchableOpacity
-                        style={styles.clearFiltersButton}
-                        onPress={() => {
-                          setFilters({});
-                          setShowFilters(false);
-                        }}
-                      >
-                        <Text style={styles.clearFiltersText}>Clear All Filters</Text>
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={styles.applyFiltersButton}
-                        onPress={() => setShowFilters(false)}
-                      >
-                        <Text style={styles.applyFiltersText}>Apply Filters</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </ScrollView>
               </View>
-            </TouchableWithoutFeedback>
+            </ScrollView>
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
 
       {loading && reports.length === 0 ? (
@@ -632,31 +639,39 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
+  modalOverlayBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   modalContent: {
     backgroundColor: Colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 20,
+    height: Dimensions.get('window').height * 0.75,
+    maxHeight: Dimensions.get('window').height * 0.75,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
+    fontWeight: '700',
+    color: Colors.foreground,
+    letterSpacing: -0.3,
   },
   modalScrollView: {
     flex: 1,
   },
+  modalScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 100,
+  },
   filterContent: {
-    padding: 20,
+    padding: 16,
   },
   filterRow: {
     marginBottom: 20,
