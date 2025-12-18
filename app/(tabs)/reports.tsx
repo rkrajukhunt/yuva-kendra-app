@@ -646,8 +646,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    height: Dimensions.get('window').height * 0.75,
-    maxHeight: Dimensions.get('window').height * 0.75,
+    height: Dimensions.get('window').height * 0.75 - 80,
+    maxHeight: Dimensions.get('window').height * 0.75 - 80,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   },
   modalScrollContent: {
     flexGrow: 1,
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   filterContent: {
     padding: 16,
