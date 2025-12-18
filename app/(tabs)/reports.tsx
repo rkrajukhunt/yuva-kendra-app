@@ -487,7 +487,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: 16,
+    padding: 12,
+    paddingTop: 8,
   },
   emptyListContent: {
     flexGrow: 1,

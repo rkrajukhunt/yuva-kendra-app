@@ -247,7 +247,7 @@ export async function getReportById(id: string): Promise<WeeklyReport | null> {
 }
 
 export async function createReport(report: Omit<WeeklyReport, 'id' | 'created_at' | 'kendra' | 'creator'>): Promise<WeeklyReport> {
-  const pushpNo = getPushpNumber(report.week_start_date);
+  const pushpNo = report.pushp_no || getPushpNumber(report.week_start_date);
   const weekEndDate = report.week_end_date || getWeekEndDate(report.week_start_date);
   
   const { data, error } = await supabase
@@ -336,10 +336,14 @@ export async function updateReport(id: string, updates: Partial<WeeklyReport>): 
   if (updates.bhavferni_attendance !== undefined) dbUpdates.bhavferni_attendance = updates.bhavferni_attendance;
   if (updates.pravachan_attendance !== undefined) dbUpdates.pravachan_attendance = updates.pravachan_attendance;
   if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.pushp_no !== undefined) dbUpdates.pushp_no = updates.pushp_no;
   if (updates.week_start_date !== undefined) {
     dbUpdates.week_start_date = updates.week_start_date;
     dbUpdates.week_end_date = updates.week_end_date || getWeekEndDate(updates.week_start_date);
-    dbUpdates.pushp_no = getPushpNumber(updates.week_start_date);
+    // Only auto-calculate pushp_no if not manually set
+    if (updates.pushp_no === undefined) {
+      dbUpdates.pushp_no = getPushpNumber(updates.week_start_date);
+    }
   }
 
   const { data, error } = await supabase

@@ -778,8 +778,8 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: Colors.card,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
@@ -792,7 +792,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: 12,
+    paddingTop: 8,
   },
   itemCard: {
     flexDirection: 'row',

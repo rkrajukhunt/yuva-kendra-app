@@ -33,6 +33,10 @@ export default function TabsLayout() {
           borderBottomColor: Colors.border,
           elevation: 0,
           shadowOpacity: 0,
+          height: Platform.OS === 'ios' ? 96 : 84,
+        },
+        headerTitleContainerStyle: {
+          paddingHorizontal: 0,
         },
         headerTintColor: Colors.foreground,
         headerTitleStyle: {

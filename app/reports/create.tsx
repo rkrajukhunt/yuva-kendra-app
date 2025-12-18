@@ -16,7 +16,7 @@ import { getKendras, getReportById, createReport, updateReport } from '../../ser
 import { Kendra, WeeklyReport } from '../../types';
 import { Colors } from '../../constants/Colors';
 import { validateReportData } from '../../utils/validation';
-import { getWeekStartDate, isValidReportDate } from '../../utils/dateHelpers';
+import { getWeekStartDate, isValidReportDate, getPushpNumber } from '../../utils/dateHelpers';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Dropdown from '../../components/Dropdown';
@@ -37,6 +37,7 @@ export default function CreateReportScreen() {
     yuva_attendance: '',
     bhavferni_attendance: '',
     pravachan_attendance: '',
+    pushp_no: '',
     description: '',
   });
 
@@ -71,6 +72,7 @@ export default function CreateReportScreen() {
             yuva_attendance: report.yuva_kendra_attendance.toString(),
             bhavferni_attendance: report.bhavferni_attendance.toString(),
             pravachan_attendance: report.pravachan_attendance.toString(),
+            pushp_no: report.pushp_no?.toString() || '',
             description: report.description || '',
           });
         }
@@ -109,9 +111,19 @@ export default function CreateReportScreen() {
 
     setSaving(true);
     try {
-      const reportData = {
+      // Calculate week_end_date (6 days after week_start_date)
+      const weekStart = new Date(formData.week_start_date);
+      weekStart.setDate(weekStart.getDate() + 6);
+      const weekEndDate = weekStart.toISOString().split('T')[0];
+      
+      // Use manual pushp_no if provided, otherwise calculate from week_start_date
+      const pushpNo = formData.pushp_no ? parseInt(formData.pushp_no) : getPushpNumber(formData.week_start_date);
+      
+      const reportData: any = {
         kendra_id: formData.kendra_id,
         week_start_date: formData.week_start_date,
+        week_end_date: weekEndDate,
+        pushp_no: pushpNo,
         yuva_kendra_attendance: parseInt(formData.yuva_attendance) || 0,
         bhavferni_attendance: parseInt(formData.bhavferni_attendance) || 0,
         pravachan_attendance: parseInt(formData.pravachan_attendance) || 0,
@@ -230,6 +242,17 @@ export default function CreateReportScreen() {
               placeholder="0"
               value={formData.pravachan_attendance}
               onChangeText={(text) => setFormData({ ...formData, pravachan_attendance: text })}
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Pushp Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Auto-calculated"
+              value={formData.pushp_no}
+              onChangeText={(text) => setFormData({ ...formData, pushp_no: text })}
               keyboardType="numeric"
             />
           </View>
